@@ -1,3 +1,6 @@
+import pandas as pd
+
+
 def pregunta_12():
     """
     En `data/tbl2.tsv`, cada valor de la columna `c0` aparece en varias
@@ -14,5 +17,8 @@ def pregunta_12():
         2    2        ccc:6,ddd:2,ggg:5,jjj:1
         ...
     """
-
-    raise NotImplementedError
+    tabla = pd.read_csv("data/tbl2.tsv", sep="\t")
+    tabla["c5"] = tabla["c5a"] + ":" + tabla["c5b"].astype(str)
+    # ordenar los textos "clave:valor" es ordenar por clave, que es lo pedido
+    unido = tabla.groupby("c0")["c5"].apply(lambda textos: ",".join(sorted(textos)))
+    return unido.reset_index().sort_values("c0").reset_index(drop=True)

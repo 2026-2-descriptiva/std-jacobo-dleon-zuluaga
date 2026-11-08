@@ -1,3 +1,6 @@
+import pandas as pd
+
+
 def pregunta_13():
     """
     Combine las tablas `data/tbl0.tsv` y `data/tbl2.tsv` usando la columna
@@ -14,5 +17,8 @@ def pregunta_13():
         C     81
         ...
     """
-
-    raise NotImplementedError
+    tbl0 = pd.read_csv("data/tbl0.tsv", sep="\t")
+    tbl2 = pd.read_csv("data/tbl2.tsv", sep="\t")
+    # inner join por c0: cada fila de tbl2 hereda la categoría c1 de tbl0
+    union = pd.merge(tbl0, tbl2, on="c0", how="inner")
+    return union.groupby("c1")["c5b"].sum().sort_index()

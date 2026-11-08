@@ -1,3 +1,6 @@
+import pandas as pd
+
+
 def pregunta_09():
     """
     Retorne la tabla `data/tbl0.tsv` completa con una columna adicional
@@ -12,5 +15,7 @@ def pregunta_09():
         2    2  B   5  1998-05-02  1998
         ...
     """
-
-    raise NotImplementedError
+    tabla = pd.read_csv("data/tbl0.tsv", sep="\t")
+    # la fecha es YYYY-MM-DD, el año son los primeros 4 caracteres
+    anios = tabla["c3"].str.slice(0, 4)
+    return tabla.assign(year=anios)
