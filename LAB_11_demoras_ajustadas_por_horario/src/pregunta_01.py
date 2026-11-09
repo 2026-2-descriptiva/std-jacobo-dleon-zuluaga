@@ -1,4 +1,10 @@
+from pathlib import Path
+
 import pandas as pd
+
+RUTA_DATOS = Path("data") / "flights_by_carrier_day_hour.csv.gz"
+CARPETA_SALIDA = Path("submission")
+MIN_VUELOS = 100_000
 
 
 def pregunta_01() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -58,4 +64,67 @@ def pregunta_01() -> tuple[pd.DataFrame, pd.DataFrame]:
         ...
     """
 
-    raise NotImplementedError
+    CARPETA_SALIDA.mkdir(exist_ok=True)
+
+    vuelos = pd.read_csv(RUTA_DATOS)
+    columnas = ["operated_flights", "delayed_departure_15_flights"]
+
+    # tasa nacional por hora (todas las aerolineas juntas)
+    por_hora = vuelos.groupby("scheduled_departure_hour")[columnas].sum()
+    tasa_hora = por_hora["delayed_departure_15_flights"] / por_hora["operated_flights"]
+
+    horas = por_hora.reset_index()
+    horas[columnas] = horas[columnas].astype(int)
+    horas["delay_rate"] = tasa_hora.round(4).to_numpy()
+
+    # vuelos de cada aerolinea en cada hora, con la tasa nacional de esa hora al lado
+    aero_hora = (
+        vuelos.groupby(["reporting_airline", "scheduled_departure_hour"])[
+            "operated_flights"
+        ]
+        .sum()
+        .reset_index()
+    )
+    aero_hora["tasa_nacional"] = aero_hora["scheduled_departure_hour"].map(tasa_hora)
+    # demoras que tendria la aerolinea si en cada hora fuera como el promedio
+    aero_hora["esperadas"] = aero_hora["operated_flights"] * aero_hora["tasa_nacional"]
+    esperadas = aero_hora.groupby("reporting_airline")["esperadas"].sum()
+
+    aerolineas = vuelos.groupby("reporting_airline")[columnas].sum()
+    aerolineas = aerolineas[aerolineas["operated_flights"] >= MIN_VUELOS].copy()
+    aerolineas["delay_rate"] = (
+        aerolineas["delayed_departure_15_flights"] / aerolineas["operated_flights"]
+    )
+    aerolineas["expected_delayed_flights"] = esperadas.reindex(aerolineas.index)
+    aerolineas["observed_to_expected_ratio"] = (
+        aerolineas["delayed_departure_15_flights"]
+        / aerolineas["expected_delayed_flights"]
+    )
+
+    # puesto 1 = peor aerolinea (mayor tasa o mayor razon)
+    aerolineas["crude_rank"] = (
+        aerolineas["delay_rate"].rank(ascending=False, method="first").astype(int)
+    )
+    aerolineas["adjusted_rank"] = (
+        aerolineas["observed_to_expected_ratio"]
+        .rank(ascending=False, method="first")
+        .astype(int)
+    )
+
+    aerolineas[columnas] = aerolineas[columnas].astype(int)
+    aerolineas = (
+        aerolineas.round(
+            {
+                "delay_rate": 4,
+                "expected_delayed_flights": 4,
+                "observed_to_expected_ratio": 4,
+            }
+        )
+        .sort_values("adjusted_rank")
+        .reset_index()
+    )
+
+    horas.to_csv(CARPETA_SALIDA / "hourly_delay_rates.csv", index=False)
+    aerolineas.to_csv(CARPETA_SALIDA / "carrier_adjusted_delays.csv", index=False)
+
+    return horas, aerolineas
