@@ -21,3 +21,8 @@
 --
 --  Escriba su consulta debajo de esta línea.
 --
+-- ordenar y tomar el primero evita la subconsulta con MIN
+SELECT *
+FROM tbl2
+ORDER BY c21 ASC
+LIMIT 1;

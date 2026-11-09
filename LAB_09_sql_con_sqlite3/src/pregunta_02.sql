@@ -21,3 +21,5 @@
 --
 --  Escriba su consulta debajo de esta línea.
 --
+-- COUNT(1) cuenta filas igual que COUNT(*)
+SELECT COUNT(1) AS registros FROM tbl1;

@@ -25,3 +25,8 @@
 --
 --  Escriba su consulta debajo de esta línea.
 --
+-- el anio se saca del texto de la fecha con strftime
+SELECT STRFTIME('%Y', c23) AS anio, AVG(c21) AS promedio_c21
+FROM tbl2
+GROUP BY anio
+ORDER BY anio;

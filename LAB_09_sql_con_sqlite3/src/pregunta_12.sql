@@ -25,3 +25,6 @@
 --
 --  Escriba su consulta debajo de esta línea.
 --
+SELECT K0, MAX(c12) AS maximo, MIN(c12) AS minimo
+FROM tbl1
+GROUP BY K0;

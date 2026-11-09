@@ -22,3 +22,8 @@
 --
 --  Escriba su consulta debajo de esta línea.
 --
+-- se agrupa por anio y despues se deja solo 2018 con HAVING
+SELECT STRFTIME('%Y', c14) AS anio, COUNT(*) AS cantidad
+FROM tbl1
+GROUP BY anio
+HAVING anio = '2018';

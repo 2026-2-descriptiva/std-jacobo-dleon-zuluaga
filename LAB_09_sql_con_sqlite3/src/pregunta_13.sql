@@ -26,3 +26,8 @@
 --
 --  Escriba su consulta debajo de esta línea.
 --
+-- el filtro por c13 va antes de agrupar, asi el promedio solo usa esas filas
+SELECT K0, AVG(c12) AS promedio_c12
+FROM tbl1
+WHERE c13 > 400
+GROUP BY K0;

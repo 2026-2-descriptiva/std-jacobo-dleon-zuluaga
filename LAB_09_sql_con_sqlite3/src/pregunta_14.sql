@@ -27,3 +27,9 @@
 --
 --  Escriba su consulta debajo de esta línea.
 --
+-- K1 es la llave que une las dos tablas
+SELECT a.K0, AVG(b.c21) AS promedio_c21
+FROM tbl1 AS a
+INNER JOIN tbl2 AS b ON b.K1 = a.K1
+WHERE a.c13 > 400
+GROUP BY a.K0;

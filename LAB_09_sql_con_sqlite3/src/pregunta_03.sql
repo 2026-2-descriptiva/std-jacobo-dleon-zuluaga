@@ -26,3 +26,8 @@
 --
 --  Escriba su consulta debajo de esta línea.
 --
+-- las fechas son texto ISO (aaaa-mm-dd), por eso el orden alfabetico sirve
+SELECT *
+FROM tbl1
+ORDER BY c14
+LIMIT 5;
