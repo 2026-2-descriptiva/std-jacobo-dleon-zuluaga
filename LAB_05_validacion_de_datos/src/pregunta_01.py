@@ -1,3 +1,23 @@
+import json
+from pathlib import Path
+
+import pandas as pd
+
+COLUMNAS_REQUERIDAS = [
+    "supplier_id",
+    "supplier",
+    "country",
+    "city",
+    "purchase_date",
+    "amount",
+    "discount",
+    "weight",
+    "units",
+    "unit_price",
+    "contact_email",
+]
+
+
 def main():
     """
     Antes de limpiar o analizar un conjunto de datos, un analista debe
@@ -48,4 +68,59 @@ def main():
         }
     """
 
-    raise NotImplementedError
+    # Todo se lee como texto para no alterar ningún valor (ceros a la izquierda,
+    # formatos de fecha, etc.). Solo se marcan como faltantes "" y "N/A".
+    # utf-8-sig quita la marca BOM del primer encabezado.
+    ventas = pd.read_csv(
+        "data/ventas.csv.gz",
+        dtype=str,
+        encoding="utf-8-sig",
+        keep_default_na=False,
+        na_values=["", "N/A"],
+    )
+    ventas.columns = [
+        nombre.replace("\ufeff", "").strip().lower().replace(" ", "_")
+        for nombre in ventas.columns
+    ]
+
+    columnas = list(ventas.columns)
+    faltantes_requeridas = sorted(set(COLUMNAS_REQUERIDAS) - set(columnas))
+    inesperadas = sorted(set(columnas) - set(COLUMNAS_REQUERIDAS))
+
+    filas_duplicadas = int(ventas.duplicated().sum())
+    # keep=False marca todas las filas del grupo, no solo las repetidas
+    ids_repetidos = int(ventas["supplier_id"].duplicated(keep=False).sum())
+
+    nulos_por_columna = ventas.isna().sum().astype(int).to_dict()
+
+    # Los faltantes no se evalúan: solo se revisan los correos que sí vienen
+    correos = ventas["contact_email"].dropna().str.strip()
+    correos_invalidos = int((~correos.str.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+")).sum())
+
+    # Lo que no se puede convertir a número queda como NaN y no se cuenta
+    unidades = pd.to_numeric(ventas["units"], errors="coerce").dropna()
+    es_entero_positivo = (unidades > 0) & (unidades % 1 == 0)
+    unidades_invalidas = int((~es_entero_positivo).sum())
+
+    # Se dejan los valores tal cual, con espacios y mayúsculas, porque justo eso es lo que se reporta
+    paises = sorted(ventas["country"].dropna().unique())
+
+    reporte = {
+        "row_count": len(ventas),
+        "column_count": len(columnas),
+        "missing_required_columns": faltantes_requeridas,
+        "unexpected_columns": inesperadas,
+        "duplicate_row_count": filas_duplicadas,
+        "duplicate_supplier_id_row_count": ids_repetidos,
+        "missing_value_count_by_column": nulos_por_columna,
+        "invalid_email_count": correos_invalidos,
+        "invalid_unit_count": unidades_invalidas,
+        "country_values": paises,
+    }
+
+    ruta = Path("submission") / "data_quality_report.json"
+    ruta.parent.mkdir(exist_ok=True)
+    with open(ruta, "w", encoding="utf-8") as archivo:
+        json.dump(reporte, archivo, indent=2, ensure_ascii=False)
+
+    return reporte
