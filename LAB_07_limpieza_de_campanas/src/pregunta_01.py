@@ -1,4 +1,11 @@
+from pathlib import Path
+
 import pandas as pd
+
+MESES = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+}
 
 
 def clean_campaign_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -43,4 +50,47 @@ def clean_campaign_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         ...
     """
 
-    raise NotImplementedError
+    Path("submission").mkdir(exist_ok=True)
+
+    # pandas lee el .gz directamente; la primera columna es un índice viejo
+    archivos = sorted(Path("data").glob("bank-marketing-campaing-*.csv.gz"))
+    datos = pd.concat((pd.read_csv(a, index_col=0) for a in archivos), ignore_index=True)
+
+    # clientes
+    client = datos[
+        ["client_id", "age", "job", "marital", "education", "credit_default", "mortgage"]
+    ].copy()
+    client["job"] = client["job"].str.replace(".", "", regex=False).str.replace("-", "_", regex=False)
+    client["education"] = client["education"].str.replace(".", "_", regex=False)
+    # "unknown" en education queda como faltante
+    client["education"] = client["education"].mask(client["education"] == "unknown")
+    for col in ["credit_default", "mortgage"]:
+        client[col] = client[col].eq("yes").astype(int)
+
+    # campaña
+    campaign = datos[
+        [
+            "client_id",
+            "number_contacts",
+            "contact_duration",
+            "previous_campaign_contacts",
+            "previous_outcome",
+            "campaign_outcome",
+        ]
+    ].copy()
+    campaign["previous_outcome"] = campaign["previous_outcome"].eq("success").astype(int)
+    campaign["campaign_outcome"] = campaign["campaign_outcome"].eq("yes").astype(int)
+    # to_datetime arma la fecha a partir de columnas year, month y day
+    partes_fecha = pd.DataFrame(
+        {"year": 2022, "month": datos["month"].map(MESES), "day": datos["day"]}
+    )
+    campaign["last_contact_date"] = pd.to_datetime(partes_fecha).dt.strftime("%Y-%m-%d")
+
+    # contexto económico
+    economics = datos[["client_id", "cons_price_idx", "euribor_three_months"]].copy()
+
+    client.to_csv("submission/client.csv", index=False)
+    campaign.to_csv("submission/campaign.csv", index=False)
+    economics.to_csv("submission/economics.csv", index=False)
+
+    return client, campaign, economics
